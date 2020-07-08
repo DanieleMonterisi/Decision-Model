@@ -1,0 +1,266 @@
+---
+title: "Assignment 2"
+author: "Daniele Monterisi"
+date: "3/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## Problem 1
+Consider the following ILP:
+
+$$
+\begin{aligned}
+&\max \quad 9 x_{1}+5 x_{2}+6 x_{3}+4 x_{4}\\
+&\text { s.t. } \quad \\
+&6 x_{1}+3 x_{2}+5 x_{3}+2 x_{4} \leq 10, \\
+&x_{3}+x_{4} \leq 1,\\
+&-x_{1}+x_{3} \leq 0,\\
+&-x_{2}+x_{4} \leq 0\\
+&x_{1}, x_{2}, x_{3}, x_{4} \in\{0,1\}
+\end{aligned}
+$$
+The following tree represents the solutions of all possible relaxations of the problem in which no sub-problem has been excluded (fathoming).
+ 
+ <center>
+![](tree.png){width=600px}
+
+</center>
+<br>
+<br>
+
+Suppose that the Branch and Bound (BB) algorithm applies to this problem. Also, let's suppose that the algorithm visits the sub-problems in the following order P0 , P1 , . . . , P16. Clearly, the algorithm does not visit all nodes. 
+
+
+1) Determine the nodes that will be visited by the BB algorithm and for each of them get the upper and lower limit deduced by the algorithm in the execution.
+
+2) Solve the problem with an ILP solver and check the value of the objective function matches the one found at point 1.
+
+
+## Import delle librerie
+
+```{r}
+library(lpSolveAPI)
+library(lpSolve)
+library(dplyr)
+```
+
+## Costruzione del modello 
+
+```{r}
+lp.model <- make.lp(0, 4) #model with 0 constraints and 4 variables
+lp.control(lp.model, sense = "max") # max problem
+set.objfn(lp.model, obj=c(9, 5, 6, 4))
+add.constraint(lp.model, xt = c(6,3,5,2), type="<=", rhs=10, indices=c(1,2,3,4))
+add.constraint(lp.model, xt = c(1,1), type="<=", rhs=1, indices=c(3,4))
+add.constraint(lp.model, xt = c(-1,1), type="<=", rhs=0, indices=c(1,3))
+add.constraint(lp.model, xt = c(-1,1), type="<=", rhs=0, indices=c(2,4))
+#set upper and lower bound
+set.bounds(lp.model, lower = c(0, 0, 0, 0))
+set.bounds(lp.model, upper = c(1, 1, 1, 1))
+```
+
+## Soluzione del modello
+
+```{r}
+solve(lp.model)
+
+```
+
+```{r}
+get.variables(lp.model)
+
+```
+
+
+
+## Relaxed optimal solution
+
+```{r}
+
+get.objective(lp.model)
+
+```
+
+
+## BB algorithm
+
+L'algoritmo Branch and Bound visita l'albero effettua un cammino visitando i nodi in questo ordine:
+
+Partendo da $P_{0}$, per $x_{1}=0$ l'algoritmo va in $P_{2}$ dove trova la migliore soluzione possibile per questo sottoproblema. L'algoritmo si ferrma e i nodi $P_{3}, P_{4}, P_{5}, P_{6}$ non vengono controllati.
+
+Per  $x_{1}=1$ l'algoritmo va in $P_{1}$ che non ha soluzioni intere. Per $x_{4}=1$ va in $P_{8}$ che ha una soluzione non fattibile e l'algoritmo si ferma. Per $x_{4}=0$ va in $P_{9}$ (soluzioni non intere). Per $x_{4}=1$ va in $P_{10}$ dove non abbiamo una soluzione fattibile e dunque l'algoritmo si ferma. Per $x_{4}=0$ va in $P_{11}$ che ha soluzioni intere e l'algoritmo si ferma. 
+
+Per $x_{2}=0$ va in $P_{12}$ che non ha soluzioni intere. Dunque per $x_{3}=1$ va in $P_{13}$ dove non abbiamo soluzioni fattibili e infine per $x_{3}$ = 0 va in $P_{14}$ che ha soluzioni intere e dunque l'algoritmo si ferma senza visitare i restanti nodi del grafo.
+
+
+
+
+
+## ILP SOLVER
+
+
+```{r}
+lp.model <- make.lp(0, 4) #model with 0 constraints and 4 variables
+lp.control(lp.model, sense = "max") # max problem
+set.objfn(lp.model, obj=c(9, 5, 6, 4))
+add.constraint(lp.model, xt = c(6,3,5,2), type="<=", rhs=10, indices=c(1,2,3,4))
+add.constraint(lp.model, xt = c(1,1), type="<=", rhs=1, indices=c(3,4))
+add.constraint(lp.model, xt = c(-1,1), type="<=", rhs=0, indices=c(1,3))
+add.constraint(lp.model, xt = c(-1,1), type="<=", rhs=0, indices=c(2,4))
+
+add.constraint(lp.model, xt = c(-1,1), type="<=", rhs=0, indices=c(2,4))
+# integrality condition --> x1 and x2 must be integer
+set.type(lp.model, c(1,2,3,4), "binary") # BINARY = 0,1
+solve(lp.model)
+
+```
+```{r}
+get.objective(lp.model)
+```
+
+
+```{r}
+get.variables(lp.model)
+```
+
+La soluzione ottimale trovata equivale alla soluzione ottenuta nel punto 1.
+
+## Problem 2
+
+SunNet is a residential Internet Service Provider (ISP) in the central Florida area.
+Presently, the company operates one centralized facility that all of its clients call into for Internet access. 
+
+To improve service, the company is planning to open three satellite offices in the cities of Pine Hills, Eustis, and Sanford. 
+The company has identified five different regions to be serviced by these three offices. 
+The following table summarizes the number of customers in each region, the service capacity at each office, and the monthly average cost per customer for providing the service to each region from each office. Table entries of “n.a.” indicate infeasible region-to-service center combinations. 
+
+SunNet would like to determine how many customers from each region to assign to each service center to minimize the total cost.
+
+$$
+\begin{array}{lllll}
+\text { Region } & \text { Pine Hills } & \text { Eustis } & \text { Sanford } & \text { Customers } \\ 
+1 & \$ 6.50 & \$ 7.50 & \text { n.a. } & 30,000 \\ 
+2 & \$ 7.00 & \$ 8.00 & \text { n.a. } & 40,000 \\ 
+3 & \$ 8.25 & \$ 7.25 & \$ 6.75 & 25,000 \\ 
+4 & \text { n.a. } & \$ 7.75 & \$ 7.00 & 35,000 \\ 
+5 & \text { n.a. } & \$ 7.50 & \$ 6.75 & 33,000 \\ 
+\hline
+\text { Capacity } & 60,000 & 70,000 & 40,000 & 
+\end{array}
+$$
+
+
+
+
+## 1) Draw a network flow model to represent this problem.
+ <center>
+![](graph.jpeg){width=600px}
+
+</center>
+<br>
+<br>
+
+## 2) Implement your model and solve it.
+
+Le variabili del modello sono:
+• $x_{1,6}$ = Regione1 servita dall’ufficio di PineHills
+• $x_{1,7}$ = Regione1 servita dall’ufficio di Eustis
+• $x_{2,6}$ = Regione2 servita dall’ufficio di PineHills
+• $x_{2,6}$ = Regione2 servita dall’ufficio di Eustis
+• $x_{3,6}$ = Regione3 servita dall’ufficio di PineHills
+• $x_{3,7}$ = Regione3 servita dall’ufficio di Eustis
+• $x_{3,8}$ = Regione3 servita dall’ufficio di Sanford
+• $x_{4,7}$ = Regione4 servita dall’ufficio di Eustis
+• $x_{4,8}$ = Regione4 servita dall’ufficio di Sanford
+• $x_{5,7}$ = Regione5 servita dall’ufficio di Eustis
+• $x_{5,8}$ = Regione5 servita dall’ufficio di Sanford
+
+
+## Funzione obiettivo
+
+$min : 6.5x_{1,6} + 7.5x_{1,7} + 7x_{2,6} + 8x_{2,7} + 8.25x_{3,6} + 7.25x_{3,7} + 6.75x_{3,8} + 7.75x_{4,7} + 7x_{4,8} + 7.5x_{5,7} + 6.75x_{5,8}$
+
+## Vincoli 
+
+Capacity Constraints:
+
+x1,6 + x2,6 + x3,6 ≤ 60000
+x1,7 + x2,7 + x3,7 + x4,7 + x5,7 ≤ 70000
+x3,8 + x4,8 + x5,8 ≤ 40000
+
+
+Customers Constraints:
+
+x1,6 + x1,7 = 30000
+x2,6 + x2,7 = 40000
+x3,6 + x3,7 + x3,8 = 25000
+x4,7 + x4,8 = 35000
+x5,7 + x5,8 = 33000
+
+Non-Negativity Constraints:
+xi,j ≥ 0 with i = 1, 2, 3, 4, 5; j = 6, 7, 8
+
+```{r}
+lp.model2 <- make.lp(0, 11) #model with 0 constraints and 11 variables
+lp.control(lp.model2, sense = "min") #min problem
+set.objfn(lp.model2, obj=c(6.5, 7.5, 7, 8, 8.25, 7.25, 6.75, 7.75, 7, 7.5, 6.75))
+
+
+# CAPACITY CONTRAINTS
+add.constraint(lp.model2, xt = c(1,1,1), type="<=", rhs=60000, indices=c(1,3,5))
+add.constraint(lp.model2, xt = c(1,1,1,1,1), type="<=", rhs=70000, indices=c(2,4,6,8,10))
+add.constraint(lp.model2, xt = c(1,1,1), type="<=", rhs=40000, indices=c(7,9,11))
+
+
+# CUSTOMERS CONSTRAINTS
+add.constraint(lp.model2, xt = c(1,1), type="=", rhs=30000, indices=c(1,2))
+add.constraint(lp.model2, xt = c(1,1), type="=", rhs=40000, indices=c(3,4))
+add.constraint(lp.model2, xt = c(1,1,1), type="=", rhs=25000, indices=c(5,6,7))
+add.constraint(lp.model2, xt = c(1,1), type="=", rhs=35000, indices=c(8,9))
+add.constraint(lp.model2, xt = c(1,1), type="=", rhs=33000, indices=c(10,11))
+
+
+
+# set lower bound
+set.bounds(lp.model2, lower = c(0,0,0,0,0,0,0,0,0,0,0))
+solve(lp.model2)
+
+
+
+```
+
+
+```{r}
+get.objective(lp.model2)
+```
+
+```{r}
+get.variables(lp.model2)
+
+```
+
+
+
+3) What is the optimal solution?
+
+
+La soluzione ottimale è riportata nella seguente tabella:
+
+$$
+\begin{array}{lllll}
+\text { Region } & \text { Pine Hills } & \text { Eustis } & \text { Sanford } \\ 
+1 & \ 2000 & \ 1000 & \text { n.a. } \\ 
+2 & \ 40000 & \ 0 & \text { n.a. } \\ 
+3 & \ 0 & \ 25000 & \ 0  \\ 
+4 & \text { n.a. } & \ 0 & \ 35000 \\ 
+5 & \text { n.a. } & \ 28000 & \ 5000 \\ 
+
+
+\end{array}
+$$
